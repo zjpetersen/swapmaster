@@ -72,44 +72,18 @@ contract Swapmaster is IPaymaster {
             // Verify if token is the correct one
             // require(token == allowedToken, "Invalid token");
 
-            // We verify that the user has provided enough allowance
             address userAddress = address(uint160(_transaction.from));
-            // address toAddress = address(uint160(_transaction.to));
-
             address thisAddress = address(this);
-
-            // uint256 providedAllowance = IERC20(token).allowance(
-            //     userAddress,
-            //     thisAddress
-            // );
-            // require(
-            //     providedAllowance >= PRICE_FOR_PAYING_FEES,
-            //     "Min allowance too low"
-            // );
-            console.log(amount);
 
             // Note, that while the minimal amount of ETH needed is tx.gasPrice * tx.gasLimit,
             // neither paymaster nor account are allowed to access this context variable.
             uint256 requiredETH = _transaction.gasLimit *
                 _transaction.maxFeePerGas;
-            // bytes memory testSwapData = abi.encode(["address", "address", "uint8"], [token, thisAddress, 1]);
             bytes memory testSwapData = abi.encode(token, thisAddress, 1);
             console.log(string(testSwapData));
 
+            //TODO verify swapped amount > requiredETH
 
-            // try
-            //     IERC20(token).transferFrom(userAddress, thisAddress, amount)
-            // {} catch (bytes memory revertReason) {
-            //     // If the revert reason is empty or represented by just a function selector,
-            //     // we replace the error with a more user-friendly message
-            //     if (revertReason.length <= 4) {
-            //         revert("Failed to transferFrom from users' account");
-            //     } else {
-            //         assembly {
-            //             revert(add(0x20, revertReason), mload(revertReason))
-            //         }
-            //     }
-            // }
             swapSingle(amount, testSwapData, userAddress);
 
             // The bootloader never returns any data, so it can safely be ignored here.
@@ -131,17 +105,13 @@ contract Swapmaster is IPaymaster {
     /// @return amountOut The amount of ETH received.
     function swapSingle(uint256 amountIn, bytes memory swapData, address userAddress) public returns (uint256 amountOut) { //TODO make internal
         // msg.sender must approve this contract
-        console.log(string(swapData));
-        console.log(amountIn);
 
         // Transfer the specified amount of USDC to this contract.
         // TransferHelper.safeTransferFrom(USDC, msg.sender, address(this), amountIn);
         TransferHelper.safeTransferFrom(USDC, userAddress, address(this), amountIn);
-        console.log("Here");
 
         // Approve the router to spend USDC.
         TransferHelper.safeApprove(USDC, address(swapRouter), amountIn);
-        console.log("Here 1");
 
 
         IRouter.SwapStep memory swapStep1 = IRouter.SwapStep({
@@ -150,11 +120,9 @@ contract Swapmaster is IPaymaster {
             callback: address(0),
             callbackData: "" 
         });
-        console.log("Here 2");
 
         IRouter.SwapStep[] memory swapStep = new IRouter.SwapStep[](1);
         swapStep[0] = swapStep1;
-        console.log("Here 3");
 
         IRouter.SwapPath[] memory swapPaths = new IRouter.SwapPath[](1);
         swapPaths[0] = IRouter.SwapPath({
@@ -162,7 +130,6 @@ contract Swapmaster is IPaymaster {
             tokenIn: USDC,
             amountIn: amountIn
         });
-        console.log("Here 4");
 
         // Naively set amountOutMinimum to 0. In production, use an oracle or other data source to choose a safer value for amountOutMinimum.
         uint32 minOut = 0;
